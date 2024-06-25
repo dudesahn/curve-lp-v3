@@ -18,6 +18,24 @@ interface IFactory {
     function set_protocol_fee_recipient(address) external;
 }
 
+// Heroglyph pools
+// Porigon - Polygon
+// 
+// https://app.balancer.fi/#/polygon/pool/0x7c173e2a341faf5c90bf0ff448cd925d3731c604000200000000000000000eb8
+// 
+// Kabosuchan - Base
+// 
+// https://app.balancer.fi/#/base/pool/0x0dce7d1e1fbfc85c31bd04f890027738f00e580b000100000000000000000163
+// 
+// OogaBooga - Arbitrum
+// 
+// https://app.balancer.fi/#/arbitrum/pool/0xd2b6e489ce64691cb46967df6963a49f92764ba9000200000000000000000545
+// 
+// Molandak - Arbitrum
+// 
+// https://app.balancer.fi/#/arbitrum/pool/0xfed111077e0905ef2b2fbf3060cfa9a34bab4383000200000000000000000544
+
+
 contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
