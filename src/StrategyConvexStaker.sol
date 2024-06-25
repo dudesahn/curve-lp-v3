@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {TradeFactorySwapper} from "@periphery/swappers/TradeFactorySwapper.sol";
+import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 import {IConvexBooster, IConvexRewards} from "./interfaces/ConvexInterfaces.sol";
 
-contract StrategyConvexStaker is BaseStrategy, TradeFactorySwapper {
+contract StrategyConvexStaker is
+    BaseStrategy,
+    TradeFactorySwapper,
+    AuctionSwapper
+{
     using SafeERC20 for ERC20;
+
+    // Mapping to be set by management for any reward tokens.
+    // This can be used to set different mins for different tokens
+    // or to set to uin256.max if selling a reward token is reverting
+    mapping(address => uint256) public minAmountToSellMapping;
 
     /// @notice This is the deposit contract that all Convex pools use, aka booster.
     IConvexBooster public immutable booster;
@@ -128,22 +138,25 @@ contract StrategyConvexStaker is BaseStrategy, TradeFactorySwapper {
             _deployFunds(_looseAssets);
         }
 
+        // claim any pending rewards
+        _claimRewards();
+
         _totalAssets = balanceOfStake();
     }
-
-    /* ========== TRADE FACTORY FUNCTIONS ========== */
 
     /**
      * @notice Use to manually claim rewards from our staking contract.
      * @dev Can only be called by management. Mostly helpful to make life easier for trade factory.
      */
-    function manualRewardsClaim() external onlyManagement {
+    function manualRewardsClaim() external onlyKeepers {
         _claimRewards();
     }
 
     function _claimRewards() internal override {
         rewardsContract.getReward(address(this), true);
     }
+
+    /* ========== TRADE FACTORY FUNCTIONS ========== */
 
     /**
      * @notice Use to update our trade factory.
@@ -160,6 +173,7 @@ contract StrategyConvexStaker is BaseStrategy, TradeFactorySwapper {
      * @param _token Address of token to add.
      */
     function addToken(address _token) external onlyManagement {
+        require(_token != address(asset), "!allowed");
         _addToken(_token, address(asset));
     }
 
@@ -168,7 +182,41 @@ contract StrategyConvexStaker is BaseStrategy, TradeFactorySwapper {
      * @dev Can only be called by management.
      * @param _token Address of token to remove.
      */
-    function removeToken(address _token) external onlyManagement {
+    function removeToken(address _token) external onlyEmergencyAuthorized {
         _removeToken(_token, address(asset));
+    }
+
+    /* ========== AUCTION FUNCTIONS ========== */
+
+    function setAuction(address _auction) external onlyEmergencyAuthorized {
+        if (_auction != address(0)) {
+            require(Auction(_auction).want() == address(asset), "wrong want");
+        }
+        auction = _auction;
+    }
+
+    function _auctionKicked(
+        address _token
+    ) internal override returns (uint256 _kicked) {
+        require(_token != address(asset), "!allowed");
+        _kicked = super._auctionKicked(_token);
+        require(_kicked >= minAmountToSellMapping[_token], "too little");
+    }
+
+    /**
+     * @notice Set the `minAmountToSellMapping` for a specific `_token`.
+     * @dev This can be used by management to adjust wether or not the
+     * _claimAndSellRewards() function will attempt to sell a specific
+     * reward token. This can be used if liquidity is to low, amounts
+     * are to low or any other reason that may cause reverts.
+     *
+     * @param _token The address of the token to adjust.
+     * @param _amount Min required amount to sell.
+     */
+    function setMinAmountToSellMapping(
+        address _token,
+        uint256 _amount
+    ) external onlyManagement {
+        minAmountToSellMapping[_token] = _amount;
     }
 }

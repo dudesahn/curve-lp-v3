@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
-import {Strategy, ERC20} from "../../Strategy.sol";
-import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
+import {StrategyConvexStaker, ERC20} from "src/StrategyConvexStaker.sol";
+import {IStrategyInterface} from "src/interfaces/IStrategyInterface.sol";
+import {IConvexBooster} from "src/interfaces/ConvexInterfaces.sol";
 
 // Inherit the events so they can be checked if desired.
 import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
@@ -20,26 +21,29 @@ interface IFactory {
 
 // Heroglyph pools
 // Porigon - Polygon
-// 
+//
 // https://app.balancer.fi/#/polygon/pool/0x7c173e2a341faf5c90bf0ff448cd925d3731c604000200000000000000000eb8
-// 
+//
 // Kabosuchan - Base
-// 
+//
 // https://app.balancer.fi/#/base/pool/0x0dce7d1e1fbfc85c31bd04f890027738f00e580b000100000000000000000163
-// 
+//
 // OogaBooga - Arbitrum
-// 
+//
 // https://app.balancer.fi/#/arbitrum/pool/0xd2b6e489ce64691cb46967df6963a49f92764ba9000200000000000000000545
-// 
+//
 // Molandak - Arbitrum
-// 
+//
 // https://app.balancer.fi/#/arbitrum/pool/0xfed111077e0905ef2b2fbf3060cfa9a34bab4383000200000000000000000544
-
 
 contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
+
+    // to use when deploying strategy
+    IConvexBooster public booster; // specific to each chain
+    uint256 public pid; // specific to each pool
 
     mapping(string => address) public tokenAddrs;
 
@@ -64,32 +68,54 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
+        //uint256 mainnetFork = vm.createFork("mainnet");
+        //uint256 arbitrumFork = vm.createFork("arbitrum");
+        //uint256 polygonFork = vm.createFork("polygon");
+        //uint256 optimismFork = vm.createFork("optimism");
+
+        //vm.selectFork(mainnetFork);
+        //vm.selectFork(arbitrumFork);
+        //vm.selectFork(polygonFork);
+        //vm.selectFork(optimismFork);
+        
         _setTokenAddrs();
 
         // Set asset
-        asset = ERC20(tokenAddrs["DAI"]);
+        asset = ERC20(tokenAddrs["MIM-3Crv"]);
 
         // Set decimals
         decimals = asset.decimals();
 
+        // setup vars for strategy
+        booster = IConvexBooster(0xF403C135812408BFbE8713b5A23a04b3D48AAE31); // convex mainnet booster: 0xF403C135812408BFbE8713b5A23a04b3D48AAE31
+        pid = 40; // convex mainnet tricrypto: 188, MIM: 40
+
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        factory = strategy.FACTORY();
-
         // label all the used addresses for traces
+        vm.label(user, "user");
+        vm.label(address(booster), "booster");
         vm.label(keeper, "keeper");
-        vm.label(factory, "factory");
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
+
+        factory = strategy.FACTORY();
     }
 
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy"))
+            address(
+                new StrategyConvexStaker(
+                    address(asset),
+                    pid,
+                    address(booster),
+                    "StrategyConvexMIM"
+                )
+            )
         );
 
         // set keeper
@@ -172,5 +198,7 @@ contract Setup is ExtendedTest, IEvents {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        tokenAddrs["3CryptoUSDT"] = 0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4;
+        tokenAddrs["MIM-3Crv"] = 0x5a6A4D54456819380173272A5E8E9B9904BdF41B;
     }
 }

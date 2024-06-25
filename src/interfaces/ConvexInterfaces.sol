@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.15;
+pragma solidity ^0.8.18;
 
 interface IConvexRewards {
     // strategy's staked balance in the synthetix staking contract

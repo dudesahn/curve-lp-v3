@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
@@ -10,7 +10,7 @@ contract OperationTest is Setup {
     }
 
     function test_setupStrategyOK() public {
-        console.log("address of strategy", address(strategy));
+        console2.log("address of strategy", address(strategy));
         assertTrue(address(0) != address(strategy));
         assertEq(strategy.asset(), address(asset));
         assertEq(strategy.management(), management);
@@ -19,11 +19,20 @@ contract OperationTest is Setup {
         // TODO: add additional check on strat params
     }
 
-    function test_operation(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+    function test_operation() public {
+        uint256 _amount = 100e18;
+
+        address assetWhale = 0xfB26C512d62C454af23128e2Bd542cBb36ce087D;
+        vm.prank(assetWhale);
+        asset.transfer(user, _amount);
+
+        vm.prank(assetWhale);
+        asset.approve(address(booster), type(uint256).max);
+        vm.prank(assetWhale);
+        booster.deposit(pid, _amount, true);
 
         // Deposit into strategy
-        mintAndDepositIntoStrategy(strategy, user, _amount);
+        depositIntoStrategy(strategy, user, _amount);
 
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
