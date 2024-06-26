@@ -19,20 +19,11 @@ contract OperationTest is Setup {
         // TODO: add additional check on strat params
     }
 
-    function test_operation() public {
-        uint256 _amount = 100e18;
-
-        address assetWhale = 0xfB26C512d62C454af23128e2Bd542cBb36ce087D;
-        vm.prank(assetWhale);
-        asset.transfer(user, _amount);
-
-        vm.prank(assetWhale);
-        asset.approve(address(booster), type(uint256).max);
-        vm.prank(assetWhale);
-        booster.deposit(pid, _amount, true);
+    function test_operation(uint256 _amount) public {
+        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
 
         // Deposit into strategy
-        depositIntoStrategy(strategy, user, _amount);
+        mintAndDepositIntoStrategy(strategy, user, _amount);
 
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 

@@ -44,6 +44,7 @@ contract Setup is ExtendedTest, IEvents {
     // to use when deploying strategy
     IConvexBooster public booster; // specific to each chain
     uint256 public pid; // specific to each pool
+    string public name;
 
     mapping(string => address) public tokenAddrs;
 
@@ -77,7 +78,7 @@ contract Setup is ExtendedTest, IEvents {
         //vm.selectFork(arbitrumFork);
         //vm.selectFork(polygonFork);
         //vm.selectFork(optimismFork);
-        
+
         _setTokenAddrs();
 
         // Set asset
@@ -89,9 +90,12 @@ contract Setup is ExtendedTest, IEvents {
         // setup vars for strategy
         booster = IConvexBooster(0xF403C135812408BFbE8713b5A23a04b3D48AAE31); // convex mainnet booster: 0xF403C135812408BFbE8713b5A23a04b3D48AAE31
         pid = 40; // convex mainnet tricrypto: 188, MIM: 40
+        name = "StrategyConvexMIM";
 
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
+
+        factory = strategy.FACTORY();
 
         // label all the used addresses for traces
         vm.label(user, "user");
@@ -101,8 +105,6 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
-
-        factory = strategy.FACTORY();
     }
 
     function setUpStrategy() public returns (address) {
@@ -113,7 +115,7 @@ contract Setup is ExtendedTest, IEvents {
                     address(asset),
                     pid,
                     address(booster),
-                    "StrategyConvexMIM"
+                    name
                 )
             )
         );
